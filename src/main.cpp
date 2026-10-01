@@ -13,6 +13,15 @@
 
 #define GROUPING_SIZE 10
 
+// Motion-artifact rejection:
+// real muscle activity averages ~3,000-15,000, while the sensor bumping
+// the body produces spikes up to ~94,000. Any group average above
+// ARTIFACT_LIMIT is treated as a bump and reported as 0, and the output
+// stays at 0 for ARTIFACT_HOLDOFF_GROUPS more groups (10 ms each) so the
+// decaying tail of the bump and the filter's ringing are also dropped.
+#define ARTIFACT_LIMIT 30000L
+#define ARTIFACT_HOLDOFF_GROUPS 20
+
 EMGFilters myFilter;
 // discrete filters must works with fixed sample frequence
 // our emg filter only support "SAMPLE_FREQ_500HZ" or "SAMPLE_FREQ_1000HZ"
@@ -33,6 +42,10 @@ static int Throhold = 0 ;
 int count = 0;
 unsigned long timeStamp;
 unsigned long timeBudget;
+unsigned long nextSampleTime;   // micros() deadline for the next sample
+long envelopeSum = 0;           // running sum over the current group
+unsigned long maxCost = 0;      // worst-case processing time in the group
+int holdoffRemaining = 0;       // groups left to suppress after an artifact
 
 void setup() {
     /* add setup code here */
@@ -44,7 +57,9 @@ void setup() {
     // setup for time cost measure
     // using micros()
     timeBudget = 1e6 / sampleRate;
-    // micros will overflow and auto return to zero every 70 minutes
+    // micros will overflow and auto return to zero every 70 minutes;
+    // the unsigned subtraction in loop() handles that correctly
+    nextSampleTime = micros();
 }
 
 void loop() {
@@ -52,6 +67,11 @@ void loop() {
     // In order to make sure the ADC sample frequence on arduino,
     // the time cost should be measured each loop
     /*------------start here-------------------*/
+    // wait until it's time for the next sample so the filter sees a
+    // steady sampleRate (scheduling off the deadline avoids drift)
+    while ((long)(micros() - nextSampleTime) < 0) {
+    }
+    nextSampleTime += timeBudget;
     timeStamp = micros();
 
     int Value = analogRead(SensorInputPin);
@@ -60,25 +80,50 @@ void loop() {
     int DataAfterFilter = myFilter.update(Value);
 
     // Use a wider type: squaring an AVR int can overflow (int is 16-bit).
-    long envlope = (long)DataAfterFilter * DataAfterFilter;
+    long power = (long)DataAfterFilter * DataAfterFilter;
     // any value under throhold will be set to zero
-    envlope = (envlope > Throhold) ? envlope : 0;
+    power = (power > Throhold) ? power : 0;
 
     timeStamp = micros() - timeStamp;
-    if (TIMING_DEBUG) {
-        // Serial.print("Read Data: "); Serial.println(Value);
-        // Serial.print("Filtered Data: ");Serial.println(DataAfterFilter);
-        Serial.print(">envlope:");
-        Serial.println(envlope);
-        // Serial.print("Filters cost time: "); Serial.println(timeStamp);
-        // the filter cost average around 520 us
+    if (timeStamp > maxCost) {
+        maxCost = timeStamp;
     }
 
-    /*------------end here---------------------*/
-    // if less than timeBudget, then you still have (timeBudget - timeStamp) to
-    // do your work
+    envelopeSum += power;
     count++;
-    delayMicroseconds(500);
-    // if more than timeBudget, the sample rate need to reduce to
+
+    // printing every sample at 115200 baud takes longer than the 1 ms
+    // budget, so only print the group average every GROUPING_SIZE samples
+    if (count >= GROUPING_SIZE) {
+        long rawAverage = envelopeSum / GROUPING_SIZE;
+        long groupAverage = rawAverage;
+
+        if (rawAverage > ARTIFACT_LIMIT) {
+            // sensor bump: drop it and restart the holdoff window
+            holdoffRemaining = ARTIFACT_HOLDOFF_GROUPS;
+            groupAverage = 0;
+        } else if (holdoffRemaining > 0) {
+            // still settling after a bump
+            holdoffRemaining--;
+            groupAverage = 0;
+        }
+
+        Serial.print(">power:");
+        Serial.println(groupAverage);
+        if (TIMING_DEBUG) {
+            // unfiltered value, useful for tuning ARTIFACT_LIMIT
+            Serial.print(">rawPower:");
+            Serial.println(rawAverage);
+            // worst filter cost in the group; must stay under timeBudget
+            // (the filter cost average around 520 us)
+            Serial.print(">costUs:");
+            Serial.println(maxCost);
+        }
+        envelopeSum = 0;
+        maxCost = 0;
+        count = 0;
+    }
+    /*------------end here---------------------*/
+    // if costUs gets close to timeBudget, the sample rate need to reduce to
     // SAMPLE_FREQ_500HZ
 }
