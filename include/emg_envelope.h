@@ -24,6 +24,9 @@ struct EmgEnvelope {
     long power;              // group average after artifact rejection
     long rawPower;           // group average before artifact rejection
     unsigned long maxCostUs; // worst per-sample processing time in the group
+    int adcMin;              // lowest raw ADC reading in the group
+    int adcMax;              // highest raw ADC reading in the group
+    bool suppressed;         // power was zeroed by artifact rejection
 };
 
 // Configure the filters and start the sample clock. Call once from setup().
