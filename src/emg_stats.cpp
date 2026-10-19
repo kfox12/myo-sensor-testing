@@ -128,60 +128,90 @@ void emgStatsAdd(const EmgEnvelope &group) {
     histogram[binFor(group.power)]++;
 }
 
-void emgStatsPrint() {
-    Serial.println(F("----- EMG run statistics -----"));
-    Serial.print(F("duration s:        "));
-    Serial.println((millis() - startMillis) / 1000.0, 1);
-    Serial.print(F("groups total:      "));
-    Serial.println(totalGroups);
-    Serial.print(F("groups clean:      "));
-    Serial.println(cleanGroups);
+EmgStatsSummary emgStatsGetSummary() {
+    EmgStatsSummary summary;
+    summary.durationMs = millis() - startMillis;
+    summary.totalGroups = totalGroups;
+    summary.cleanGroups = cleanGroups;
+    summary.artifactGroups = artifactGroups;
+    summary.suppressedGroups = suppressedGroups;
+    summary.clippedGroups = clippedGroups;
+    summary.maxRawPower = maxRawPower;
+    summary.adcMin = adcMin;
+    summary.adcMax = adcMax;
 
     if (cleanGroups > 0) {
         float mean = (float)powerSum / cleanGroups;
         float variance = (float)powerSumSq / cleanGroups - mean * mean;
-        float stdDev = (variance > 0) ? sqrt(variance) : 0;
-        long p10 = percentile(10);
-        long p50 = percentile(50);
-        long p90 = percentile(90);
-        long p99 = percentile(99);
+        summary.minPower = minPower;
+        summary.maxPower = maxPower;
+        summary.meanPower = mean;
+        summary.stdDevPower = (variance > 0) ? sqrt(variance) : 0;
+        summary.p10 = percentile(10);
+        summary.p50 = percentile(50);
+        summary.p90 = percentile(90);
+        summary.p99 = percentile(99);
+    } else {
+        summary.minPower = 0;
+        summary.maxPower = 0;
+        summary.meanPower = 0;
+        summary.stdDevPower = 0;
+        summary.p10 = 0;
+        summary.p50 = 0;
+        summary.p90 = 0;
+        summary.p99 = 0;
+    }
+    return summary;
+}
 
+void emgStatsPrint() {
+    EmgStatsSummary summary = emgStatsGetSummary();
+
+    Serial.println(F("----- EMG run statistics -----"));
+    Serial.print(F("duration s:        "));
+    Serial.println(summary.durationMs / 1000.0, 1);
+    Serial.print(F("groups total:      "));
+    Serial.println(summary.totalGroups);
+    Serial.print(F("groups clean:      "));
+    Serial.println(summary.cleanGroups);
+
+    if (summary.cleanGroups > 0) {
         Serial.print(F("power min:         "));
-        Serial.println(minPower);
+        Serial.println(summary.minPower);
         Serial.print(F("power max:         "));
-        Serial.println(maxPower);
+        Serial.println(summary.maxPower);
         Serial.print(F("power mean:        "));
-        Serial.println(mean, 1);
+        Serial.println(summary.meanPower, 1);
         Serial.print(F("power std dev:     "));
-        Serial.println(stdDev, 1);
+        Serial.println(summary.stdDevPower, 1);
         Serial.print(F("power p10 (~):     "));
-        Serial.println(p10);
+        Serial.println(summary.p10);
         Serial.print(F("power p50 (~):     "));
-        Serial.println(p50);
+        Serial.println(summary.p50);
         Serial.print(F("power p90 (~):     "));
-        Serial.println(p90);
+        Serial.println(summary.p90);
         Serial.print(F("power p99 (~):     "));
-        Serial.println(p99);
+        Serial.println(summary.p99);
         // contrast between strong activity and the quiet floor
         Serial.print(F("p90/p10 ratio:     "));
-        if (p10 > 0) {
-            Serial.println((float)p90 / p10, 1);
+        if (summary.p10 > 0) {
+            Serial.println((float)summary.p90 / summary.p10, 1);
         } else {
             Serial.println(F("n/a (p10 is 0)"));
         }
     }
 
     Serial.print(F("raw power max:     "));
-    Serial.println(maxRawPower);
+    Serial.println(summary.maxRawPower);
     Serial.print(F("artifact groups:   "));
-    Serial.println(artifactGroups);
+    Serial.println(summary.artifactGroups);
     Serial.print(F("suppressed groups: "));
-    Serial.println(suppressedGroups);
+    Serial.println(summary.suppressedGroups);
     Serial.print(F("ADC min / max:     "));
-    Serial.print(adcMin);
+    Serial.print(summary.adcMin);
     Serial.print(F(" / "));
-    Serial.println(adcMax);
+    Serial.println(summary.adcMax);
     Serial.print(F("clipped groups:    "));
-    Serial.println(clippedGroups);
+    Serial.println(summary.clippedGroups);
     Serial.println(F("------------------------------"));
 }

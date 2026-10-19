@@ -15,11 +15,36 @@
 // repeated contractions, print. The active p90 against the rest p50
 // shows how well that placement separates signal from noise.
 
+// Snapshot of the run so far. Power fields cover clean groups only and
+// are 0 when there are none.
+struct EmgStatsSummary {
+    unsigned long durationMs;
+    unsigned long totalGroups;      // every group seen
+    unsigned long cleanGroups;      // groups included in power stats
+    unsigned long artifactGroups;   // raw average exceeded ARTIFACT_LIMIT
+    unsigned long suppressedGroups; // zeroed by artifact rejection (incl. holdoff)
+    unsigned long clippedGroups;    // ADC hit 0 or 1023 at least once
+    long minPower;
+    long maxPower;
+    long maxRawPower;               // includes artifacts
+    float meanPower;
+    float stdDevPower;
+    long p10;                       // percentiles are approximate (+/-17%)
+    long p50;
+    long p90;
+    long p99;
+    int adcMin;
+    int adcMax;
+};
+
 // Clear all statistics and restart the run timer.
 void emgStatsReset();
 
 // Add one finished group from emgEnvelopeUpdate().
 void emgStatsAdd(const EmgEnvelope &group);
+
+// Summarize the run so far.
+EmgStatsSummary emgStatsGetSummary();
 
 // Print a human-readable summary of the run so far over Serial.
 // Takes roughly 50 ms at 115200 baud, which delays sampling, so only
