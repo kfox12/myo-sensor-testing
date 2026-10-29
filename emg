@@ -1,0 +1,10 @@
+#!/bin/sh
+# Opens the emgtool menu. Subcommands still work, e.g. ./emg plot data/forearm_flexors/*.csv
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PY="$DIR/tools/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+    echo "The Python environment is missing. Create it once with:" >&2
+    echo "  python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt" >&2
+    exit 1
+fi
+PYTHONPATH="$DIR/tools${PYTHONPATH:+:$PYTHONPATH}" exec "$PY" -m emgtool "$@"

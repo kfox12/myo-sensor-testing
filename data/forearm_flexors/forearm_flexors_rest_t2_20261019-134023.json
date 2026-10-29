@@ -1,0 +1,9 @@
+{
+  "location": "forearm_flexors",
+  "label": "rest",
+  "trial": 2,
+  "groups": 1000,
+  "seconds": 10.0,
+  "recorded_at": "2026-10-19T13:40:23",
+  "port": "/dev/cu.usbmodem1101"
+}
