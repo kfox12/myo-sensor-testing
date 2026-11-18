@@ -20,7 +20,9 @@ GROUPS_PER_SECOND = round(1 / GROUP_SECONDS)
 PROTOCOL = [
     ("rest", "Relax completely", 10),
     ("movement", "Repeatedly contract and relax, about once per second", 10),
-    ("max", "Squeeze as hard as comfortable and hold", 5),
+    # same effort as the firmware calibration's holds, so the profile
+    # ratios derived from these runs match what calibration measures
+    ("max", "Squeeze firmly (not all-out) and hold", 5),
 ]
 PREP_SECONDS = 3
 

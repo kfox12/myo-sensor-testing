@@ -38,6 +38,14 @@ def parse_measurement(line):
     }
 
 
+def parse_clipped(line):
+    """Parse "clipped groups: 3 of 1900"."""
+    match = re.match(r"clipped groups: (\d+) of (\d+)", line)
+    if not match:
+        return None
+    return {"clipped_groups": int(match.group(1)), "recorded_groups": int(match.group(2))}
+
+
 def _read_text_until(link, done, timeout, echo):
     """Echo text lines until done(line) is true; return the lines read."""
     lines = []
@@ -82,6 +90,9 @@ def calibrate(link, data_dir, location_id=None, echo=print):
         echo,
     )
     measurement = next(filter(None, map(parse_measurement, lines)), None)
+    clipped = next(filter(None, map(parse_clipped, lines)), None)
+    if measurement is not None and clipped is not None:
+        measurement.update(clipped)
     saved = lines[-1] == "Calibration saved."
     failure = next((l for l in lines if l.startswith("Calibration failed")), None)
 

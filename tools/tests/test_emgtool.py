@@ -13,7 +13,7 @@ import numpy as np
 
 from emgtool.__main__ import main
 from emgtool.analysis import derive_profile, find_trials, load_run, profile_table_row, trial_metrics
-from emgtool.calibration import parse_block, parse_measurement
+from emgtool.calibration import parse_block, parse_clipped, parse_measurement
 from emgtool.recording import save_run
 from emgtool import menu
 from emgtool.serial_link import RowBuilder, parse_location_list, parse_telemetry
@@ -51,6 +51,13 @@ class CalibrationParseTest(unittest.TestCase):
             parse_measurement("rest p99: 447, max contraction: 8003, SNR: 17.9"),
             {"rest_p99": 447, "max_contraction": 8003, "snr": 17.9},
         )
+
+    def test_clipped(self):
+        self.assertEqual(
+            parse_clipped("clipped groups: 3 of 1900"),
+            {"clipped_groups": 3, "recorded_groups": 1900},
+        )
+        self.assertIsNone(parse_clipped("Relax (3 s)"))
 
 
 def fake_trial(rng, rest_level=100, move_level=2000, hold_level=8000):

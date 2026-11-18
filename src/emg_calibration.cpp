@@ -20,6 +20,12 @@
 // artifact rejection
 #define MAX_SUPPRESSED_PERCENT 10
 
+// reject the run if more than this share of recorded groups touched an ADC
+// rail. A hard squeeze can graze a rail on its biggest peaks (the sensor
+// rests at ~1.5 V, ~300 counts above 0) without hurting the mean power, so
+// a few clipped groups are tolerated.
+#define MAX_CLIPPED_PERCENT 1
+
 enum Phase : uint8_t {
     PHASE_IDLE,
     PHASE_SETTLE,
@@ -92,7 +98,7 @@ static void startPhase(Phase p) {
     switch (p) {
     case PHASE_SETTLE: Serial.println(F("Keep still...")); break;
     case PHASE_REST:   Serial.println(F("Relax completely (8 s)")); break;
-    case PHASE_HOLD_1: Serial.println(F("Squeeze as hard as comfortable, hold (3 s)")); break;
+    case PHASE_HOLD_1: Serial.println(F("Squeeze firmly (not all-out), hold (3 s)")); break;
     case PHASE_RELAX:  Serial.println(F("Relax (3 s)")); break;
     case PHASE_HOLD_2: Serial.println(F("Squeeze and hold again (3 s)")); break;
     default: break;
@@ -114,6 +120,10 @@ static void finish() {
     Serial.print(mvcPower);
     Serial.print(F(", SNR: "));
     Serial.println((float)mvcPower / (restP99 > 0 ? restP99 : 1), 1);
+    Serial.print(F("clipped groups: "));
+    Serial.print(clippedGroups);
+    Serial.print(F(" of "));
+    Serial.println(recordedGroups);
 
     if (result == CAL_OK) {
         emgCalibrationCompute(profile, selectedLocation, restP99, mvcPower, current);
@@ -124,7 +134,7 @@ static void finish() {
         Serial.print(F("Calibration failed: "));
         switch (result) {
         case CAL_CLIPPED:
-            Serial.println(F("signal clipped, lower sensor gain"));
+            Serial.println(F("signal clipped, squeeze less hard"));
             break;
         case CAL_TOO_MANY_ARTIFACTS:
             Serial.println(F("too many artifacts, hold still / tape cables, retry"));
@@ -266,7 +276,7 @@ CalibrationResult emgCalibrationValidate(const LocationProfile &profile,
                                          unsigned long recordedGroups,
                                          unsigned long clippedGroups,
                                          unsigned long suppressedGroups) {
-    if (clippedGroups > 0) {
+    if (clippedGroups * 100 > recordedGroups * MAX_CLIPPED_PERCENT) {
         return CAL_CLIPPED;
     }
     if (recordedGroups == 0 ||

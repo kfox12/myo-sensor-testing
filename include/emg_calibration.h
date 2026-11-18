@@ -49,7 +49,7 @@ int emgCalibrationActivation(long power);
 
 enum CalibrationResult {
     CAL_OK,
-    CAL_CLIPPED,            // ADC hit its rails: sensor gain too high
+    CAL_CLIPPED,            // too many groups hit an ADC rail: gain too high
     CAL_TOO_MANY_ARTIFACTS, // too many groups lost to sensor bumps
     CAL_LOW_SNR,            // max contraction too close to the rest floor
 };
