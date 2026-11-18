@@ -17,6 +17,15 @@ pio run -t upload
 Or use the PlatformIO toolbar in VS Code (Upload). The board is an Uno at
 115200 baud (see `platformio.ini`).
 
+Other programs for the same board, each its own environment:
+
+| Command | Program |
+|---|---|
+| `pio run -e debug -t upload` | `src/debug_main.cpp`: hardware check that streams `>power:`, `>adcMin:`, `>adcMax:` and drives the servo (pin 9) from a fixed threshold; no calibration or commands |
+| `pio run -e simple -t upload` | `simple.ino`: the original day-1 sketch |
+
+Upload the plain `pio run -t upload` again to get the full firmware back.
+
 ## 2. Watch the output
 ```
 pio device monitor
